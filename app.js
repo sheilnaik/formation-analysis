@@ -46,6 +46,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const phaseDesc = document.getElementById('phaseDesc');
   const insightText = document.getElementById('insightText');
 
+  // Mobile elements
+  const mobileInsightText = document.getElementById('mobileInsightText');
+  const mobileCommentaryFeed = document.getElementById('mobileCommentaryFeed');
+  const mobilePhaseTimeline = document.getElementById('mobilePhaseTimeline');
+  const mobileOverview = document.getElementById('mobileOverview');
+  const mobileStrengths = document.getElementById('mobileStrengths');
+  const mobileWeaknesses = document.getElementById('mobileWeaknesses');
+  const mobileFamousTeams = document.getElementById('mobileFamousTeams');
+
+  // ======== MOBILE COLLAPSE TOGGLES ========
+  document.querySelectorAll('.mobile-card-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const targetId = header.dataset.collapse;
+      const body = document.getElementById(targetId);
+      if (body) {
+        body.classList.toggle('expanded');
+        header.classList.toggle('open');
+      }
+    });
+  });
+
   // ======== FORMATION SWITCHING ========
   function loadFormation(key) {
     currentFormation = key;
@@ -58,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePlayButton();
     addCommentaryItem('Ready', `${FORMATIONS[key].name} formation loaded. Press play to see the attacking pattern unfold, or use the step buttons to go through each phase.`);
     insightText.textContent = FORMATIONS[key].overview;
+    if (mobileInsightText) mobileInsightText.textContent = FORMATIONS[key].overview;
   }
 
   function updateInfoPanel(key) {
@@ -70,11 +92,17 @@ document.addEventListener('DOMContentLoaded', () => {
     strengthsList.innerHTML = f.strengths.map(s => `<li>${s}</li>`).join('');
     weaknessesList.innerHTML = f.weaknesses.map(w => `<li>${w}</li>`).join('');
     famousTeams.innerHTML = f.famousTeams.map(t => `<span class="team-chip">${t}</span>`).join('');
+
+    // Mobile duplicates
+    if (mobileOverview) mobileOverview.textContent = f.overview;
+    if (mobileStrengths) mobileStrengths.innerHTML = f.strengths.map(s => `<li>${s}</li>`).join('');
+    if (mobileWeaknesses) mobileWeaknesses.innerHTML = f.weaknesses.map(w => `<li>${w}</li>`).join('');
+    if (mobileFamousTeams) mobileFamousTeams.innerHTML = f.famousTeams.map(t => `<span class="team-chip">${t}</span>`).join('');
   }
 
   function updateTimeline(key) {
     const phases = FORMATIONS[key].attackPattern.phases;
-    phaseTimeline.innerHTML = phases.map((p, i) => `
+    const timelineHTML = phases.map((p, i) => `
       <div class="timeline-item" data-phase="${i}">
         <div class="timeline-dot">${i + 1}</div>
         <div class="timeline-info">
@@ -84,14 +112,20 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `).join('');
 
-    // Click to jump to phase
-    phaseTimeline.querySelectorAll('.timeline-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const idx = parseInt(item.dataset.phase);
-        engine.goToPhase(idx);
-        if (engine.mode === 'step') {
-          engine.playPhaseOnce(idx);
-        }
+    phaseTimeline.innerHTML = timelineHTML;
+    if (mobilePhaseTimeline) mobilePhaseTimeline.innerHTML = timelineHTML;
+
+    // Click to jump to phase (both desktop + mobile timelines)
+    [phaseTimeline, mobilePhaseTimeline].forEach(container => {
+      if (!container) return;
+      container.querySelectorAll('.timeline-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const idx = parseInt(item.dataset.phase);
+          engine.goToPhase(idx);
+          if (engine.mode === 'step') {
+            engine.playPhaseOnce(idx);
+          }
+        });
       });
     });
   }
@@ -116,10 +150,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function highlightTimelinePhase(phaseIndex) {
-    phaseTimeline.querySelectorAll('.timeline-item').forEach((item, i) => {
-      item.classList.remove('active', 'completed');
-      if (i === phaseIndex) item.classList.add('active');
-      else if (i < phaseIndex) item.classList.add('completed');
+    [phaseTimeline, mobilePhaseTimeline].forEach(container => {
+      if (!container) return;
+      container.querySelectorAll('.timeline-item').forEach((item, i) => {
+        item.classList.remove('active', 'completed');
+        if (i === phaseIndex) item.classList.add('active');
+        else if (i < phaseIndex) item.classList.add('completed');
+      });
     });
 
     progressSteps.querySelectorAll('.progress-step-marker').forEach((marker, i) => {
@@ -131,23 +168,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ======== COMMENTARY ========
   function addCommentaryItem(phaseName, text) {
-    const existing = commentaryFeed.querySelectorAll('.commentary-item');
-    existing.forEach(el => el.classList.remove('active'));
+    [commentaryFeed, mobileCommentaryFeed].forEach(feed => {
+      if (!feed) return;
+      const existing = feed.querySelectorAll('.commentary-item');
+      existing.forEach(el => el.classList.remove('active'));
 
-    const item = document.createElement('div');
-    item.className = 'commentary-item active';
-    item.innerHTML = `<div class="comment-phase">${phaseName}</div>${text}`;
-    commentaryFeed.prepend(item);
+      const item = document.createElement('div');
+      item.className = 'commentary-item active';
+      item.innerHTML = `<div class="comment-phase">${phaseName}</div>${text}`;
+      feed.prepend(item);
 
-    // Keep only last 10 items
-    const items = commentaryFeed.querySelectorAll('.commentary-item');
-    if (items.length > 10) {
-      items[items.length - 1].remove();
-    }
+      // Keep only last 10 items
+      const items = feed.querySelectorAll('.commentary-item');
+      if (items.length > 10) {
+        items[items.length - 1].remove();
+      }
+    });
   }
 
   function clearCommentary() {
     commentaryFeed.innerHTML = '';
+    if (mobileCommentaryFeed) mobileCommentaryFeed.innerHTML = '';
   }
 
   // ======== PHASE INDICATOR ========
@@ -175,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     highlightTimelinePhase(phaseIndex);
     addCommentaryItem(phase.name, phase.description);
     insightText.textContent = phase.insight;
+    if (mobileInsightText) mobileInsightText.textContent = phase.insight;
   };
 
   engine.onProgressUpdate = (progress) => {
